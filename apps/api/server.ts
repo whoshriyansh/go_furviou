@@ -1,6 +1,7 @@
 import app from "./src/app";
 import http from "http";
 import ConnectDB from "./src/db/ConnectDB";
+import { APP_NAME } from "@furviou/shared";
 
 const server = http.createServer(app);
 
