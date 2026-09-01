@@ -41,7 +41,7 @@ interface SendingAccount {
 const oauthSchema = new Schema<OAuthConfig>(
   {
     accessToken: { type: String, required: true },
-    refreshToken: { type: String, required: true },
+    refreshToken: { type: String, default: "" },
     expiresAt: { type: Date, required: true },
   },
   { _id: false },

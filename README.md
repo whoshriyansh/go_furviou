@@ -1,159 +1,253 @@
-# Turborepo starter
+# Furviou Go
 
-This Turborepo starter is maintained by the Turborepo core team.
+Self-hosted email outreach. **That is the whole product:** you write a sequence, import leads, connect Gmail, and Furviou sends the first email and the follow-ups.
 
-## Using this example
+It does not scrape LinkedIn, write copy with AI, track opens, or run ads. One mailbox, your leads, scheduled email, replies stop the rest of the sequence.
 
-Run the following command:
+If this saves you time, [buy me a coffee](https://razorpay.me/@plavist). If you want a hosted cloud version, **star this repo** so I know people actually want it: [github.com/whoshriyansh/go_furviou](https://github.com/whoshriyansh/go_furviou).
 
-```sh
-npx create-turbo@latest
+## What you get
+
+- Google sign-in
+- Connect a Gmail mailbox (`gmail.send` + `gmail.readonly`)
+- Campaigns with a sequence of emails
+- CSV lead import and `{{firstName}}` style variables
+- Send window + timezone (mail waits until that window, even if a step says “no extra wait”)
+- Follow-ups in the same thread or as a new email
+- Stop on reply
+- In-process send worker (no Redis, no queue server)
+
+## Tech stack
+
+| Layer | Stack |
+| --- | --- |
+| Web | Next.js 16, React 19, Tailwind |
+| API | Express 5, Mongoose |
+| Database | MongoDB (Atlas is fine) |
+| Auth | Google Identity Services + JWT |
+| Sending | Gmail API from your connected mailbox |
+| Monorepo | pnpm workspaces + Turborepo |
+| Shared code | `@furviou/shared` (lead fields, personalize, timezones) |
+
+Node **22+** and **pnpm 11** are required (`packageManager` in the root `package.json`).
+
+## How the monorepo works
+
+This is one git repo with several packages. pnpm links them. Turborepo runs scripts across them.
+
+```
+go_furviou/
+├── apps/
+│   ├── web/          # Next.js UI  → http://localhost:3000
+│   └── api/          # Express API + send worker → http://localhost:4000
+├── packages/
+│   ├── shared/       # @furviou/shared — imported by web and api
+│   ├── ui/           # shared UI kit
+│   ├── eslint-config/
+│   └── typescript-config/
+├── pnpm-workspace.yaml
+└── turbo.json
 ```
 
-## What's inside?
+`pnpm-workspace.yaml` includes `apps/*` and `packages/*`. From the **repo root**, `pnpm dev` starts every package that has a `dev` script (web on 3000, api on 4000) in one terminal.
 
-This Turborepo includes the following packages/apps:
+Each app keeps its own env file:
 
-### Apps and Packages
+- `apps/api/.env` — loaded by the API (`dotenv`)
+- `apps/web/.env.local` — loaded by Next.js
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `@next/eslint-plugin-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+Do not put secrets in the web env except the public Google client ID. Mailbox client secret and Mongo stay on the API.
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+## Prerequisites
 
-### Utilities
+- [Node.js 22+](https://nodejs.org/)
+- [pnpm 11](https://pnpm.io/installation) (`corepack enable` then `corepack prepare pnpm@11.23.0 --activate`)
+- A [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) cluster (free M0 works) or MongoDB on your machine
+- A [Google Cloud](https://console.cloud.google.com/) project you own
 
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+## 1. Clone
 
 ```sh
-cd my-turborepo
-turbo build
+git clone https://github.com/whoshriyansh/go_furviou.git
+cd go_furviou
 ```
 
-Without global `turbo`, use your package manager:
+## 2. Install
 
 ```sh
-cd my-turborepo
-npx turbo build
-pnpm exec turbo build
-pnpm exec turbo build
+pnpm install
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+## 3. Env files
 
 ```sh
-turbo build --filter=docs
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
 ```
 
-Without global `turbo`:
+Fill both files using the sections below. Examples live in:
+
+- [`apps/api/.env.example`](apps/api/.env.example)
+- [`apps/web/.env.example`](apps/web/.env.example)
+
+Generate a JWT secret:
 
 ```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+openssl rand -base64 32
 ```
 
-### Develop
+Paste it into `JWT_SECRET` in `apps/api/.env`.
 
-To develop all apps and packages, run the following command:
+## 4. MongoDB
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+1. Create a free cluster on [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+2. **Database Access** → add a user with a password.
+3. **Network Access** → add your IP, or `0.0.0.0/0` for local testing only.
+4. **Connect** → Drivers → copy the URI.
+5. Put the database name in the path (`furviou` is fine):
+
+```
+MONGO_URI=mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/furviou
+```
+
+URL-encode special characters in the password.
+
+## 5. Google keys (login + Gmail)
+
+You need Google for two different jobs:
+
+1. **Sign in** — Google button on the site (Client ID only).
+2. **Mailbox** — user connects Gmail so the API can send mail and see replies (Client ID + secret + redirect URI).
+
+You can use **one** Web application OAuth client for both, or **two** clients (login vs mailbox). Two is what the env vars are named for. One client is fewer clicks: paste the same ID into every `*_CLIENT_ID` field.
+
+### Create the Google Cloud project
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) → new project (name it `furviou` or anything).
+2. **APIs & Services → Library** → enable **Gmail API**. Login will not send mail without this.
+3. **APIs & Services → OAuth consent screen** (sometimes under **Google Auth platform**):
+   - User type: **External**
+   - App name, user support email, developer contact
+   - Scopes: `gmail.send`, `gmail.readonly`, plus the default `email`, `profile`, `openid`
+   - Publishing status **Testing** → **Test users** → add **every Gmail** that will sign in or connect a mailbox. Google blocks everyone else until you publish the app.
+4. **Credentials → Create credentials → OAuth client ID → Web application**
+
+### Login client (GIS)
+
+Authorized **JavaScript origins**:
+
+```
+http://localhost:3000
+```
+
+You do not need a redirect URI for the Sign in with Google button.
+
+Copy the **Client ID** into:
+
+- `GOOGLE_CLIENT_ID` in `apps/api/.env`
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` in `apps/web/.env.local`
+
+Those two values must be identical.
+
+### Mailbox client (Gmail send)
+
+Create a second Web application client, or reuse the login client and add this redirect.
+
+Authorized **redirect URI** (must match the API port):
+
+```
+http://localhost:4000/api/auth/gmail/callback
+```
+
+If you change `PORT`, change this URI in Google Cloud **and** in `GOOGLE_MAILBOX_REDIRECT_URI`.
+
+Copy:
+
+- Client ID → `GOOGLE_MAILBOX_CLIENT_ID`
+- Client secret → `GOOGLE_MAILBOX_CLIENT_SECRET`
+- Redirect URI → `GOOGLE_MAILBOX_REDIRECT_URI=http://localhost:4000/api/auth/gmail/callback`
+
+The connect flow asks Google for offline access (`access_type=offline` + consent) so a **refresh token** is stored. If Google does not return one, Mailbox will show “Needs reconnect” — disconnect the app in [Google Account → Third-party access](https://myaccount.google.com/connections) and connect again.
+
+### Web API URL
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+
+Must match `PORT` in `apps/api/.env`. Next.js inlines `NEXT_PUBLIC_*` at startup — restart `pnpm dev` after you change it.
+
+## 6. Run
+
+From the repo root:
 
 ```sh
-cd my-turborepo
-turbo dev
+pnpm dev
 ```
 
-Without global `turbo`, use your package manager:
+You should see:
+
+- API: `Connected to MongoDB …` then `API running on port 4000` then `[send] worker every 20000ms`
+- Web: Next.js ready on [http://localhost:3000](http://localhost:3000)
+
+Open **http://localhost:3000**, sign in with a Google **test user**, go to **Mailbox**, connect Gmail, then **Campaigns**.
+
+Useful commands from the root:
 
 ```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+pnpm dev                          # web + api together
+pnpm --filter web dev             # UI only
+pnpm --filter api dev             # API only
+pnpm build                        # production build
+pnpm check-types
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## First campaign
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+1. **Mailbox** → Connect Gmail → status **Connected** and “Refresh token saved”.
+2. **Campaigns** → create one → write subject and body on every step.
+3. **Leads list** → import a CSV with an `email` column.
+4. **Launch** → pick the connected mailbox, set timezone to **where the leads live**, then launch.
 
-```sh
-turbo dev --filter=web
-```
+“No extra wait” still waits for the **send window** (default Mon–Fri 09:00–18:00 in the campaign timezone). At 1am nothing goes out until that window. Use **Send now (test)** on Launch or Performance to send one lead immediately and confirm Gmail.
 
-Without global `turbo`:
+A real send shows up in:
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
+- Gmail **Sent**
+- Campaign **Performance → Recent sends**
+- API log `[send] sent` or `[send] failed`
 
-### Remote Caching
+If the worker is waiting on the window you will see `[send] waiting` in the API terminal.
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+## Troubleshooting
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+| Symptom | Fix |
+| --- | --- |
+| “Google login is not configured” | Set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` and restart the web app. |
+| Sign-in fails / 401 | Login Client ID on web and `GOOGLE_CLIENT_ID` on the API must match. Add yourself as an OAuth **test user**. |
+| CORS / can’t reach the server | `FRONTEND_URL=http://localhost:3000`, `NEXT_PUBLIC_API_URL` matches the API port, both processes running. |
+| `redirect_uri_mismatch` | Google Cloud redirect URI must equal `GOOGLE_MAILBOX_REDIRECT_URI` exactly (http vs https, port, path `/api/auth/gmail/callback`). |
+| Mailbox “Needs reconnect” / no refresh token | App is in Testing; user is a test user; connect with consent; remove the app from Google connections and retry. |
+| Launch works but nothing sends | Check send window + timezone. Look at Performance “Sending status” and the Leads **Next send** column. |
+| `[send] failed` auth / invalid_grant | Reconnect the mailbox. Access tokens expire; refresh tokens go away if Google consent is revoked. |
+| Mongo connection error | Check `MONGO_URI`, Atlas user password, and Network Access. |
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+## Deploy (self-host)
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+The API is a **long-running Node process** (the sender is `setInterval` inside the API). Do not deploy the API to Vercel serverless — the worker will sleep and mail will stop.
 
-```sh
-cd my-turborepo
-turbo login
-```
+A setup that matches this repo:
 
-Without global `turbo`, use your package manager:
+- **Web** → Vercel
+- **API** → Railway, Render, or Fly (always-on, no free-tier spin-down)
+- **Mongo** → Atlas
 
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
+On production, update Google origins/redirects, `FRONTEND_URL`, `NEXT_PUBLIC_API_URL`, and `GOOGLE_MAILBOX_REDIRECT_URI` to those hosts.
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+## License
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+MIT. See [LICENSE](LICENSE).
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+---
 
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+[Buy me a coffee](https://razorpay.me/@plavist) · [Star the repo](https://github.com/whoshriyansh/go_furviou) if you want a cloud version

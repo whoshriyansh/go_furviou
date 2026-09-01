@@ -37,6 +37,18 @@ export async function registerWithGoogleCredential(credential: string) {
   return googleAuthRequest(ENDPOINTS.AUTH.REGISTER, credential);
 }
 
+export function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  window.dispatchEvent(new Event("auth-changed"));
+  window.location.href = "/login";
+}
+
+export async function getMe() {
+  const { data } = await axiosInstance.get<{ user: AuthUser }>(ENDPOINTS.AUTH.ME);
+  return data.user;
+}
+
 export function getToken() {
   if (typeof window === "undefined") {
     return null;

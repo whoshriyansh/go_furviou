@@ -6,11 +6,19 @@ interface Lead {
   firstName?: string;
   lastName?: string;
   fullName?: string;
-  company?: string;
+  mobile?: string;
   website?: string;
-  phone?: string;
+  instagram?: string;
+  linkedin?: string;
+  company?: string;
+  jobTitle?: string;
   iceBreaker?: string;
-  variables: Map<string, string>;
+  demoProject?: string;
+  googleReviewCount?: string;
+  averageRating?: string;
+  city?: string;
+  country?: string;
+  notes?: string;
   source: "csv" | "manual";
   status: "active" | "unsubscribed" | "bounced" | "invalid";
 }
@@ -31,13 +39,19 @@ const leadSchema = new Schema<Lead>(
     firstName: String,
     lastName: String,
     fullName: String,
-    company: String,
+    mobile: String,
     website: String,
-    variables: {
-      type: Map,
-      of: String,
-      default: {},
-    },
+    instagram: String,
+    linkedin: String,
+    company: String,
+    jobTitle: String,
+    iceBreaker: String,
+    demoProject: String,
+    googleReviewCount: String,
+    averageRating: String,
+    city: String,
+    country: String,
+    notes: String,
     source: {
       type: String,
       enum: ["csv", "manual"],

@@ -7,6 +7,7 @@ interface EmailMessage {
   sendingAccountId: Types.ObjectId;
   stepOrder: number;
   subject: string;
+  rfcMessageId?: string;
   providerMessageId?: string;
   threadId?: string;
   inReplyTo?: string;
@@ -44,6 +45,7 @@ const emailMessageSchema = new Schema<EmailMessage>(
     },
     stepOrder: { type: Number, required: true },
     subject: { type: String, required: true },
+    rfcMessageId: String,
     providerMessageId: String,
     threadId: String,
     inReplyTo: String,
