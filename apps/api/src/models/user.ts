@@ -22,7 +22,7 @@ const userSchema = new Schema<User>(
     displayName: String,
     avatar: String,
     isFromGoogle: { type: Boolean, default: false },
-    googleId: String,
+    googleId: { type: String, unique: true, sparse: true },
   },
   { timestamps: true },
 );
