@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { SITE } from "@/lib/site";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -24,8 +25,13 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Furviou",
-  description: "Email outreach",
+  metadataBase: new URL(SITE.url),
+  title: {
+    default: "Go by Furviou",
+    template: "%s · Go by Furviou",
+  },
+  description:
+    "Import leads, connect Gmail, and send email sequences from your own inbox.",
 };
 
 export default function RootLayout({
