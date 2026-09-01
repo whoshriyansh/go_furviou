@@ -22,3 +22,17 @@ export async function startGmailConnect() {
 export async function removeMailbox(id: string) {
   await axiosInstance.delete(ENDPOINTS.MAILBOXES.REMOVE(id));
 }
+
+export async function checkMailbox(id: string) {
+  const { data } = await axiosInstance.post<{ mailbox: Mailbox }>(
+    ENDPOINTS.MAILBOXES.CHECK(id),
+  );
+  return data.mailbox;
+}
+
+export async function checkAllMailboxes() {
+  const { data } = await axiosInstance.post<{ mailboxes: Mailbox[] }>(
+    ENDPOINTS.MAILBOXES.CHECK_ALL,
+  );
+  return data.mailboxes;
+}

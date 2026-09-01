@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/dashboard", label: "Details" },
-  { href: "/dashboard/campaigns", label: "Campaign" },
+  { href: "/dashboard/campaigns", label: "Campaigns" },
+  { href: "/dashboard/leads", label: "Leads" },
   { href: "/dashboard/mailbox", label: "Mailbox" },
 ];
 
@@ -17,7 +18,7 @@ export function DashboardSidebar() {
   const user = getStoredUser();
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-card px-4 py-6">
+    <aside className="flex h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-card px-4 py-6">
       <p className="font-heading text-xl">Furviou</p>
       <p className="mt-1 text-xs text-muted-foreground">Go</p>
       <p className="mt-6 text-sm font-medium">{user?.displayName || "Account"}</p>
@@ -29,7 +30,8 @@ export function DashboardSidebar() {
             href={link.href}
             className={cn(
               "rounded-lg px-3 py-2 text-sm",
-              pathname === link.href
+              pathname === link.href ||
+              (link.href !== "/dashboard" && pathname.startsWith(link.href))
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}

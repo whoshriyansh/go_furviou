@@ -54,6 +54,11 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     }
   }
 
+  if ((config.method || "get").toLowerCase() === "get") {
+    config.headers.set("Cache-Control", "no-cache");
+    config.headers.set("Pragma", "no-cache");
+  }
+
   console.info("[API →]", {
     id: config.meta.requestId,
     method: config.method?.toUpperCase(),

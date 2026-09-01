@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import SendingAccount from "../../models/sendingAccount";
+import { getValidAccessToken } from "../campaigns/gmailSend";
 import { GMAIL_SCOPES, mailboxOAuthClient } from "./gmailOAuth";
 
 function frontendUrl() {
@@ -13,6 +14,81 @@ function frontendUrl() {
 
 function mailboxRedirect(query: string) {
   return `${frontendUrl()}/dashboard/mailbox?${query}`;
+}
+
+function serializeMailbox(
+  box: {
+    _id: unknown;
+    email: string;
+    provider: string;
+    status: string;
+    fromName?: string;
+    createdAt?: Date;
+    sentToday?: number;
+    dailyLimit?: number;
+    oauth?: { refreshToken?: string; expiresAt?: Date };
+  },
+  extra?: { lastCheckOk?: boolean; lastCheckMessage?: string },
+) {
+  const hasRefreshToken = Boolean(box.oauth?.refreshToken);
+  const status =
+    box.status === "connected" && !hasRefreshToken
+      ? "needs_reauth"
+      : box.status;
+
+  return {
+    _id: String(box._id),
+    email: box.email,
+    provider: box.provider,
+    status,
+    fromName: box.fromName,
+    createdAt: box.createdAt,
+    hasRefreshToken,
+    tokenExpiresAt: box.oauth?.expiresAt,
+    sentToday: box.sentToday ?? 0,
+    dailyLimit: box.dailyLimit ?? 40,
+    ...extra,
+  };
+}
+
+async function verifyAccount(account: {
+  email: string;
+  status: string;
+  oauth?: { accessToken: string; refreshToken: string; expiresAt: Date };
+  save: () => Promise<unknown>;
+}) {
+  if (!account.oauth?.refreshToken) {
+    account.status = "needs_reauth";
+    await account.save();
+    return {
+      ok: false,
+      message: "Reconnect Gmail. Google did not leave a refresh token.",
+    };
+  }
+
+  try {
+    const accessToken = await getValidAccessToken(account);
+    const profileRes = await fetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/profile",
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!profileRes.ok) {
+      throw new Error("Gmail rejected the access token");
+    }
+    account.status = "connected";
+    await account.save();
+    return { ok: true, message: "Connected. Tokens refresh automatically." };
+  } catch (error) {
+    account.status = "needs_reauth";
+    await account.save();
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Could not refresh Gmail. Reconnect the mailbox.",
+    };
+  }
 }
 
 // Logged-in user starts Gmail connect. Login client is NOT used here.
@@ -92,6 +168,11 @@ export async function gmailCallback(req: Request, res: Response) {
       ? new Date(tokens.expiry_date)
       : new Date(Date.now() + 55 * 60 * 1000);
 
+    const existing = await SendingAccount.findOne({
+      createdBy: decoded.id,
+      email,
+    });
+
     await SendingAccount.findOneAndUpdate(
       { createdBy: decoded.id, email },
       {
@@ -102,7 +183,8 @@ export async function gmailCallback(req: Request, res: Response) {
         status: "connected",
         oauth: {
           accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token || "",
+          refreshToken:
+            tokens.refresh_token || existing?.oauth?.refreshToken || "",
           expiresAt,
         },
       },
@@ -121,9 +203,55 @@ export async function listMailboxes(req: Request, res: Response) {
     return res.status(401).json({ message: "Not authorized" });
   }
 
-  const mailboxes = await SendingAccount.find({ createdBy: req.user.id })
-    .select("email provider status fromName createdAt")
-    .sort({ createdAt: -1 });
+  const mailboxes = await SendingAccount.find({ createdBy: req.user.id }).sort({
+    createdAt: -1,
+  });
+
+  return res.json({
+    mailboxes: mailboxes.map((box) => serializeMailbox(box)),
+  });
+}
+
+export async function checkMailbox(req: Request, res: Response) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authorized" });
+  }
+
+  const account = await SendingAccount.findOne({
+    _id: req.params.id,
+    createdBy: req.user.id,
+  });
+  if (!account) {
+    return res.status(404).json({ message: "Mailbox not found" });
+  }
+
+  const result = await verifyAccount(account);
+  return res.json({
+    mailbox: serializeMailbox(account, {
+      lastCheckOk: result.ok,
+      lastCheckMessage: result.message,
+    }),
+  });
+}
+
+export async function checkAllMailboxes(req: Request, res: Response) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authorized" });
+  }
+
+  const accounts = await SendingAccount.find({ createdBy: req.user.id }).sort({
+    createdAt: -1,
+  });
+  const mailboxes = [];
+  for (const account of accounts) {
+    const result = await verifyAccount(account);
+    mailboxes.push(
+      serializeMailbox(account, {
+        lastCheckOk: result.ok,
+        lastCheckMessage: result.message,
+      }),
+    );
+  }
 
   return res.json({ mailboxes });
 }

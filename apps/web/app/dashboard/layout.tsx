@@ -8,9 +8,9 @@ export default function DashboardLayout({
 }) {
   return (
     <RequireAuth>
-      <div className="flex min-h-screen bg-background">
+      <div className="flex h-screen overflow-hidden bg-background">
         <DashboardSidebar />
-        <main className="flex-1 p-8">{children}</main>
+        <main className="min-h-0 flex-1 overflow-auto p-8">{children}</main>
       </div>
     </RequireAuth>
   );

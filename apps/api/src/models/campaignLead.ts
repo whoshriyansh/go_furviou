@@ -3,7 +3,7 @@ import { Schema, model, Types } from "mongoose";
 interface CampaignLead {
   campaignId: Types.ObjectId;
   leadId: Types.ObjectId;
-  sendingAccountId: Types.ObjectId;
+  sendingAccountId?: Types.ObjectId;
   status:
     | "queued"
     | "active"
@@ -17,6 +17,7 @@ interface CampaignLead {
   nextSendAt?: Date;
   lastSentAt?: Date;
   completedAt?: Date;
+  lastError?: string;
 }
 
 const campaignLeadSchema = new Schema<CampaignLead>(
@@ -34,7 +35,6 @@ const campaignLeadSchema = new Schema<CampaignLead>(
     sendingAccountId: {
       type: Schema.Types.ObjectId,
       ref: "SendingAccount",
-      required: true,
     },
     status: {
       type: String,
@@ -55,6 +55,7 @@ const campaignLeadSchema = new Schema<CampaignLead>(
     nextSendAt: Date,
     lastSentAt: Date,
     completedAt: Date,
+    lastError: String,
   },
   { timestamps: true },
 );
