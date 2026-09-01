@@ -7,4 +7,9 @@ export const ENDPOINTS = {
     REGISTER: "/api/auth/google",
     ME: "/api/auth/me",
   },
+  MAILBOXES: {
+    LIST: "/api/mailboxes",
+    GMAIL_CONNECT: "/api/mailboxes/gmail/connect",
+    REMOVE: (id: string) => `/api/mailboxes/${id}`,
+  },
 };

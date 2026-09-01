@@ -33,7 +33,7 @@ export function GoogleSignInButton({
             await loginWithGoogleCredential(response.credential);
           }
 
-          window.location.href = "/";
+          window.location.href = "/dashboard";
         } catch (error) {
           console.error(`[auth.${mode}] Google button failed`, error);
         }
