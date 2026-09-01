@@ -2,7 +2,7 @@
 
 import { useGoogleOneTapLogin } from "@react-oauth/google";
 import { useEffect, useState } from "react";
-import { getToken, loginWithGoogleCredential } from "../lib/googleAuth";
+import { getToken, loginWithGoogleCredential } from "../lib/api/auth";
 
 export function GoogleOneTap() {
   const [signedIn, setSignedIn] = useState(true);

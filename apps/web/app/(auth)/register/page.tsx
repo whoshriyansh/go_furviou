@@ -5,7 +5,7 @@ export default function RegisterPage() {
     <section>
       <h1>Register</h1>
       <p>Continue with Google</p>
-      <GoogleSignInButton />
+      <GoogleSignInButton mode="register" />
     </section>
   );
 }

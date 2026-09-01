@@ -1,34 +1,44 @@
 "use client";
 
-import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
-import { useState } from "react";
-import { loginWithGoogleCredential } from "../lib/googleAuth";
+import { GoogleLogin } from "@react-oauth/google";
+import { toast } from "sonner";
+import {
+  loginWithGoogleCredential,
+  registerWithGoogleCredential,
+} from "../lib/api/auth";
 
-export function GoogleSignInButton() {
-  const [error, setError] = useState("");
+type GoogleSignInButtonProps = {
+  mode?: "login" | "register";
+};
 
+export function GoogleSignInButton({
+  mode = "login",
+}: GoogleSignInButtonProps) {
   if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
     return <p>Google login is not configured</p>;
   }
 
   return (
-    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
-      <GoogleLogin
-        onSuccess={async (response) => {
-          try {
-            if (!response.credential) {
-              setError("No credential returned from Google");
-              return;
-            }
-            await loginWithGoogleCredential(response.credential);
-            window.location.href = "/";
-          } catch (err) {
-            setError(err instanceof Error ? err.message : "Login failed");
+    <GoogleLogin
+      onSuccess={async (response) => {
+        try {
+          if (!response.credential) {
+            toast.error("No credential returned from Google");
+            return;
           }
-        }}
-        onError={() => setError("Google login failed")}
-      />
-      {error ? <p>{error}</p> : null}
-    </GoogleOAuthProvider>
+
+          if (mode === "register") {
+            await registerWithGoogleCredential(response.credential);
+          } else {
+            await loginWithGoogleCredential(response.credential);
+          }
+
+          window.location.href = "/";
+        } catch (error) {
+          console.error(`[auth.${mode}] Google button failed`, error);
+        }
+      }}
+      onError={() => toast.error("Google login failed")}
+    />
   );
 }

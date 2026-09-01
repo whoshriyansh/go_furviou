@@ -5,7 +5,7 @@ export default function LoginPage() {
     <section>
       <h1>Login</h1>
       <p>Continue with Google</p>
-      <GoogleSignInButton />
+      <GoogleSignInButton mode="login" />
     </section>
   );
 }
