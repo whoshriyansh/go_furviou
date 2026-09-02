@@ -19,6 +19,7 @@ export type Lead = {
   city?: string;
   country?: string;
   notes?: string;
+  campaignIds?: string[];
   campaigns?: LeadCampaignRef[];
   enrollmentId?: string;
   enrollmentStatus?: string;

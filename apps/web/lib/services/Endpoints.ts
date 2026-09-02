@@ -26,5 +26,6 @@ export const ENDPOINTS = {
   },
   LEADS: {
     LIST: "/api/leads",
+    IMPORT: "/api/leads/import",
   },
 };

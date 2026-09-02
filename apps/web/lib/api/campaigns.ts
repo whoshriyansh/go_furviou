@@ -94,6 +94,8 @@ export async function importCampaignLeads(
   const { data } = await axiosInstance.post<{
     imported: number;
     updated: number;
+    enrolled: number;
+    alreadyEnrolled: number;
     skippedNoEmail: number;
     skippedInvalid: number;
   }>(

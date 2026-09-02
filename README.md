@@ -11,11 +11,11 @@ If this saves you time, [buy me a coffee](https://razorpay.me/@plavist). If you 
 - Google sign-in
 - Connect a Gmail mailbox (`gmail.send` + `gmail.readonly`)
 - Campaigns with a sequence of emails
-- CSV lead import and `{{firstName}}` style variables
-- Send window + timezone (mail waits until that window, even if a step says “no extra wait”)
+- CSV lead import (one Lead per email, linked to campaigns by ID)
+- Send window + timezone (mail waits until that window, even if a step says "no extra wait")
 - Follow-ups in the same thread or as a new email
 - Stop on reply
-- In-process send worker (no Redis, no queue server)
+- Redis + BullMQ so every send is a durable job (nothing depends on a timer in memory)
 
 ## Tech stack
 
@@ -24,6 +24,7 @@ If this saves you time, [buy me a coffee](https://razorpay.me/@plavist). If you 
 | Web | Next.js 16, React 19, Tailwind |
 | API | Express 5, Mongoose |
 | Database | MongoDB (Atlas is fine) |
+| Queue | Redis 7 + BullMQ |
 | Auth | Google Identity Services + JWT |
 | Sending | Gmail API from your connected mailbox |
 | Monorepo | pnpm workspaces + Turborepo |
@@ -63,6 +64,7 @@ Do not put secrets in the web env except the public Google client ID. Mailbox cl
 - [Node.js 22+](https://nodejs.org/)
 - [pnpm 11](https://pnpm.io/installation) (`corepack enable` then `corepack prepare pnpm@11.23.0 --activate`)
 - A [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) cluster (free M0 works) or MongoDB on your machine
+- [Docker](https://docs.docker.com/get-docker/) (for local Redis)
 - A [Google Cloud](https://console.cloud.google.com/) project you own
 
 ## 1. Clone
@@ -112,7 +114,36 @@ MONGO_URI=mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/furviou
 
 URL-encode special characters in the password.
 
-## 5. Google keys (login + Gmail)
+## 5. Redis (required)
+
+Sends are BullMQ jobs. Redis must be running before `pnpm dev`.
+
+One-shot container:
+
+```sh
+docker run -d --name furviou-redis -p 6379:6379 redis:7-alpine
+```
+
+Or from this repo:
+
+```sh
+docker compose up -d redis
+```
+
+Useful extras:
+
+```sh
+docker start furviou-redis          # if the container already exists
+docker logs -f furviou-redis        # confirm it is up
+```
+
+Then in `apps/api/.env`:
+
+```
+REDIS_URL=redis://127.0.0.1:6379
+```
+
+## 6. Google keys (login + Gmail)
 
 You need Google for two different jobs:
 
@@ -177,7 +208,7 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 
 Must match `PORT` in `apps/api/.env`. Next.js inlines `NEXT_PUBLIC_*` at startup — restart `pnpm dev` after you change it.
 
-## 6. Run
+## 7. Run
 
 From the repo root:
 
@@ -187,7 +218,7 @@ pnpm dev
 
 You should see:
 
-- API: `Connected to MongoDB …` then `API running on port 4000` then `[send] worker every 20000ms`
+- API: `Connected to MongoDB …` then `[send] BullMQ worker up` then `API running on port 4000`
 - Web: Next.js ready on [http://localhost:3000](http://localhost:3000)
 
 Open **http://localhost:3000**, sign in with a Google **test user**, go to **Mailbox**, connect Gmail, then **Campaigns**.
@@ -232,17 +263,11 @@ If the worker is waiting on the window you will see `[send] waiting` in the API 
 | `[send] failed` auth / invalid_grant | Reconnect the mailbox. Access tokens expire; refresh tokens go away if Google consent is revoked. |
 | Mongo connection error | Check `MONGO_URI`, Atlas user password, and Network Access. |
 
-## Deploy (self-host)
+## Deploy (production)
 
-The API is a **long-running Node process** (the sender is `setInterval` inside the API). Do not deploy the API to Vercel serverless — the worker will sleep and mail will stop.
+Production is **https://go.furviou.com** (Vercel) + **https://server.furviou.com** (AWS EC2). GitHub Actions deploys both **only on merge to `main`**.
 
-A setup that matches this repo:
-
-- **Web** → Vercel
-- **API** → Railway, Render, or Fly (always-on, no free-tier spin-down)
-- **Mongo** → Atlas
-
-On production, update Google origins/redirects, `FRONTEND_URL`, `NEXT_PUBLIC_API_URL`, and `GOOGLE_MAILBOX_REDIRECT_URI` to those hosts.
+Full AWS, DNS, Mongo IP, Google Cloud URLs, env files, and GitHub secrets: **[docs/PRODUCTION.md](docs/PRODUCTION.md)**.
 
 ## License
 
