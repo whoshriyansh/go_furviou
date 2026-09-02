@@ -1,0 +1,19 @@
+[Unit]
+Description=Furviou API (Express + BullMQ)
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/furviou
+Environment=NODE_ENV=production
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+EnvironmentFile=/opt/furviou/apps/api/.env
+ExecStart=/usr/bin/corepack pnpm --filter api start
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

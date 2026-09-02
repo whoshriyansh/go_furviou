@@ -1,0 +1,13 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: furviou-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - furviou-redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  furviou-redis-data:

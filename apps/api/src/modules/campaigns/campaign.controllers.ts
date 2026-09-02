@@ -10,6 +10,7 @@ import EmailMessage from "../../models/emailMessage";
 import SendingAccount from "../../models/sendingAccount";
 import { addDelayThenSlot, formatInZone, isWithinSendWindow, nextSendSlot } from "./schedule";
 import { getSendHealth, processCampaignNow } from "./sendWorker";
+import { syncEnrollmentJobs } from "../../queue/sendQueue";
 
 const SENDER_SELECT = "email provider status fromName";
 const DAYS: DayOfWeek[] = [
@@ -211,7 +212,7 @@ async function buildSendingStatus(campaign: {
     nextLeadLabel: nextLeadAt ? formatInZone(nextLeadAt, campaign.timezone) : null,
     dueCount,
     lastError: soonest?.lastError || null,
-    worker: getSendHealth(),
+    worker: await getSendHealth(),
     reason,
   };
 }
@@ -346,6 +347,8 @@ export async function scheduleEnrollments(
       campaign,
     );
   }
+
+  await syncEnrollmentJobs(enrollments);
 
   return enrollments.length;
 }
@@ -627,6 +630,8 @@ export async function resumeCampaign(req: Request, res: Response) {
       await enrollment.save();
       index += 1;
     }
+
+    await syncEnrollmentJobs(pending);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not resume";
     return res.status(400).json({ message });

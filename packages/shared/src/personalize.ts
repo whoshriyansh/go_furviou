@@ -8,6 +8,7 @@ for (const field of LEAD_FIELDS) {
 }
 
 const EXTRA: Record<string, LeadFieldKey> = {
+  name: "fullName",
   firstname: "firstName",
   "first name": "firstName",
   lastname: "lastName",
@@ -19,6 +20,7 @@ const EXTRA: Record<string, LeadFieldKey> = {
   jobtitle: "jobTitle",
   "job title": "jobTitle",
   icebreaker: "iceBreaker",
+  ice: "iceBreaker",
   phonenumber: "mobile",
   phone: "mobile",
 };
@@ -42,6 +44,66 @@ function resolveField(raw: string): LeadFieldKey | null {
   );
 }
 
+export function splitFullName(fullName: string) {
+  const parts = String(fullName || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) {
+    return { firstName: "", lastName: "" };
+  }
+  if (parts.length === 1) {
+    return { firstName: parts[0] || "", lastName: "" };
+  }
+  return {
+    firstName: parts[0] || "",
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
+function readValue(
+  lead: Partial<Record<LeadFieldKey, string | undefined>> | Record<string, unknown>,
+  key: LeadFieldKey,
+) {
+  const value = (lead as Record<string, unknown>)[key];
+  if (value === undefined || value === null) {
+    return "";
+  }
+  return String(value).trim();
+}
+
+/** Fill first/last/full from whatever name fields were mapped. */
+export function enrichLeadValues(
+  lead: Partial<Record<LeadFieldKey, string | undefined>> | Record<string, unknown>,
+) {
+  const values: Partial<Record<LeadFieldKey, string>> = {};
+  for (const field of LEAD_FIELDS) {
+    const value = readValue(lead, field.key);
+    if (value) {
+      values[field.key] = value;
+    }
+  }
+
+  if (!values.fullName) {
+    const joined = [values.firstName, values.lastName].filter(Boolean).join(" ");
+    if (joined) {
+      values.fullName = joined;
+    }
+  }
+
+  if (values.fullName && (!values.firstName || !values.lastName)) {
+    const split = splitFullName(values.fullName);
+    if (!values.firstName && split.firstName) {
+      values.firstName = split.firstName;
+    }
+    if (!values.lastName && split.lastName) {
+      values.lastName = split.lastName;
+    }
+  }
+
+  return values;
+}
+
 export function personalizeTemplate(
   template: string,
   values: Partial<Record<LeadFieldKey, string | undefined>>,
@@ -56,14 +118,7 @@ export function personalizeTemplate(
 }
 
 export function leadToPersonalizeValues(
-  lead: Partial<Record<LeadFieldKey, string | undefined>>,
+  lead: Partial<Record<LeadFieldKey, string | undefined>> | Record<string, unknown>,
 ) {
-  const values: Partial<Record<LeadFieldKey, string>> = {};
-  for (const field of LEAD_FIELDS) {
-    const value = lead[field.key];
-    if (value) {
-      values[field.key] = String(value);
-    }
-  }
-  return values;
+  return enrichLeadValues(lead);
 }

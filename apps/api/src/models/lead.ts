@@ -21,6 +21,7 @@ interface Lead {
   notes?: string;
   source: "csv" | "manual";
   status: "active" | "unsubscribed" | "bounced" | "invalid";
+  campaignIds: Types.ObjectId[];
 }
 
 const leadSchema = new Schema<Lead>(
@@ -63,10 +64,20 @@ const leadSchema = new Schema<Lead>(
       default: "active",
       index: true,
     },
+    campaignIds: {
+      type: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: "Campaign",
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true },
 );
 
 leadSchema.index({ createdBy: 1, email: 1 }, { unique: true });
+leadSchema.index({ campaignIds: 1 });
 
 export default model<Lead>("Lead", leadSchema);

@@ -1,0 +1,13 @@
+{
+	email hello@furviou.com
+}
+
+# Temporary HTTPS until the server.furviou.com A record exists.
+# go.furviou.com is HTTPS, so the API must be HTTPS too (browsers block mixed content).
+13-207-227-210.sslip.io {
+	reverse_proxy 127.0.0.1:4000
+}
+
+server.furviou.com {
+	reverse_proxy 127.0.0.1:4000
+}

@@ -9,7 +9,7 @@ function frontendUrl() {
     process.env.FRONTEND_URL ||
     process.env.CLIENT_URL ||
     "http://localhost:3000"
-  );
+  ).replace(/\/+$/, "");
 }
 
 function mailboxRedirect(query: string) {

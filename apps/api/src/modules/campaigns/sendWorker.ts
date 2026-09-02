@@ -2,7 +2,6 @@ import type { Types } from "mongoose";
 import {
   leadToPersonalizeValues,
   personalizeTemplate,
-  type LeadFieldKey,
 } from "@furviou/shared";
 import Campaign, { type CampaignStep } from "../../models/campaign";
 import CampaignLead from "../../models/campaignLead";
@@ -25,57 +24,44 @@ import {
   threadHasLeadReply,
 } from "./gmailSend";
 
-const BATCH = 6;
+import {
+  getQueueCounts,
+  syncEnrollmentJob,
+} from "../../queue/sendQueue";
+
 const LOCK_MS = 2 * 60 * 1000;
-const WAIT_LOG_MS = 60 * 1000;
-let tickRunning = false;
 let lastTickAt: Date | null = null;
 let lastTickDue = 0;
 let lastTickSent = 0;
 let lastTickHeld = 0;
 let lastTickError: string | null = null;
-let lastWaitLogAt = 0;
 
-function shouldLogWaiting() {
-  const now = Date.now();
-  if (now - lastWaitLogAt < WAIT_LOG_MS) {
-    return false;
+export async function getSendHealth() {
+  let queue = {
+    wait: 0,
+    delayed: 0,
+    active: 0,
+    completed: 0,
+    failed: 0,
+    paused: 0,
+  };
+  try {
+    queue = { ...queue, ...(await getQueueCounts()) };
+  } catch {
+    // Redis not ready yet
   }
-  lastWaitLogAt = now;
-  return true;
-}
 
-export function getSendHealth() {
   return {
     lastTickAt: lastTickAt?.toISOString() || null,
     lastTickDue,
     lastTickSent,
     lastTickHeld,
     lastTickError,
-    intervalMs: Number(process.env.SEND_INTERVAL_MS || 20000),
+    intervalMs: Number(
+      process.env.SEND_SWEEP_INTERVAL_MS || process.env.SEND_INTERVAL_MS || 30000,
+    ),
+    queue,
   };
-}
-
-function leadValues(lead: {
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  fullName?: string;
-  mobile?: string;
-  website?: string;
-  instagram?: string;
-  linkedin?: string;
-  company?: string;
-  jobTitle?: string;
-  iceBreaker?: string;
-  demoProject?: string;
-  googleReviewCount?: string;
-  averageRating?: string;
-  city?: string;
-  country?: string;
-  notes?: string;
-}) {
-  return leadToPersonalizeValues(lead as Partial<Record<LeadFieldKey, string>>);
 }
 
 async function resetDailyCount(
@@ -110,7 +96,7 @@ async function maybeCompleteCampaign(campaignId: Types.ObjectId) {
   }
 }
 
-async function processOne(
+export async function processOne(
   enrollmentId: Types.ObjectId,
   options?: { ignoreWindow?: boolean },
 ) {
@@ -254,9 +240,28 @@ async function processOne(
     }
   }
 
-  const values = leadValues(lead);
+  const leadDoc = lead.toObject() as unknown as Record<string, unknown>;
+  const values = leadToPersonalizeValues(leadDoc);
+  if (!lead.firstName && values.firstName) {
+    lead.firstName = values.firstName;
+  }
+  if (!lead.lastName && values.lastName) {
+    lead.lastName = values.lastName;
+  }
+  if (!lead.fullName && values.fullName) {
+    lead.fullName = values.fullName;
+  }
+  if (lead.isModified()) {
+    await lead.save();
+  }
   const subject = personalizeTemplate(step.subject, values);
   const bodyText = personalizeTemplate(step.body, values);
+  console.info("[send] personalize", {
+    to: lead.email,
+    lastName: values.lastName || null,
+    fullName: values.fullName || null,
+    iceBreaker: values.iceBreaker || null,
+  });
   const signature = account.signature?.trim();
   const body = signature ? `${bodyText}\n\n${signature}` : bodyText;
   const sendAsReply = step.sendAsReply && previous.length > 0;
@@ -392,62 +397,6 @@ async function pickAccount(
   return null;
 }
 
-export async function processDueSends() {
-  if (tickRunning) {
-    return;
-  }
-  tickRunning = true;
-  lastTickSent = 0;
-  lastTickHeld = 0;
-  lastTickError = null;
-  try {
-    const due = await CampaignLead.find({
-      status: { $in: ["queued", "active"] },
-      nextSendAt: { $lte: new Date() },
-    })
-      .sort({ nextSendAt: 1 })
-      .limit(BATCH)
-      .select("_id campaignId");
-
-    lastTickDue = due.length;
-    lastTickAt = new Date();
-    if (due.length) {
-      console.info("[send] tick", { due: due.length });
-    } else {
-      const waiting = await CampaignLead.countDocuments({
-        status: { $in: ["queued", "active"] },
-        nextSendAt: { $gt: new Date() },
-      });
-      if (waiting && shouldLogWaiting()) {
-        console.info("[send] waiting", {
-          leads: waiting,
-          note: "Queued until each lead's nextSendAt / send window",
-        });
-      }
-    }
-
-    for (const row of due) {
-      const campaign = await Campaign.findById(row.campaignId).select("status");
-      if (campaign?.status !== "active") {
-        continue;
-      }
-      const result = await processOne(row._id);
-      if (result?.status === "sent") {
-        lastTickSent += 1;
-      } else if (result?.status === "held") {
-        lastTickHeld += 1;
-      } else if (result?.status === "failed") {
-        lastTickError = result.message || "Send failed";
-      }
-    }
-  } catch (error) {
-    lastTickError = error instanceof Error ? error.message : "Worker error";
-    throw error;
-  } finally {
-    tickRunning = false;
-  }
-}
-
 export async function processCampaignNow(
   campaignId: Types.ObjectId,
   limit = 8,
@@ -460,20 +409,37 @@ export async function processCampaignNow(
     .limit(limit);
 
   const results: { status: string; message?: string }[] = [];
+  lastTickDue = pending.length;
+  lastTickAt = new Date();
+  lastTickSent = 0;
+  lastTickHeld = 0;
+  lastTickError = null;
+
   for (const row of pending) {
     row.nextSendAt = new Date();
     await row.save();
     const result = await processOne(row._id, { ignoreWindow: true });
+    const fresh = await CampaignLead.findById(row._id);
+    await syncEnrollmentJob(fresh);
     results.push(result || { status: "skipped" });
+    if (result?.status === "sent") {
+      lastTickSent += 1;
+    } else if (result?.status === "held") {
+      lastTickHeld += 1;
+    } else if (result?.status === "failed") {
+      lastTickError = result.message || "Send failed";
+    }
   }
   return results;
 }
 
-export function startSendWorker() {
-  const ms = Number(process.env.SEND_INTERVAL_MS || 20000);
-  console.log(`[send] worker every ${ms}ms`);
-  setInterval(() => {
-    processDueSends().catch((error) => console.error("[send] tick", error));
-  }, ms);
-  processDueSends().catch((error) => console.error("[send] first tick", error));
+export function recordSendResult(result: { status: string; message?: string }) {
+  lastTickAt = new Date();
+  if (result.status === "sent") {
+    lastTickSent += 1;
+  } else if (result.status === "held") {
+    lastTickHeld += 1;
+  } else if (result.status === "failed") {
+    lastTickError = result.message || "Send failed";
+  }
 }

@@ -139,14 +139,19 @@ export function SendingStatusCard({
           ) : null}
           {worker?.lastTickAt ? (
             <p className="mt-2 text-xs text-muted-foreground">
-              Sender last checked{" "}
-              {new Date(worker.lastTickAt).toLocaleTimeString()} · due{" "}
-              {worker.lastTickDue} · sent {worker.lastTickSent}
+              Last job {new Date(worker.lastTickAt).toLocaleTimeString()} · sent{" "}
+              {worker.lastTickSent}
               {worker.lastTickError ? ` · ${worker.lastTickError}` : ""}
             </p>
           ) : campaign.status === "active" ? (
             <p className="mt-2 text-xs text-muted-foreground">
-              Sender checks about every 20 seconds.
+              Sends run from the Redis job queue.
+            </p>
+          ) : null}
+          {worker?.queue ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Queue waiting {worker.queue.wait} · delayed {worker.queue.delayed} ·
+              active {worker.queue.active}
             </p>
           ) : null}
         </div>

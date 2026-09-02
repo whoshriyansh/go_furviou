@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { listLeads } from "@/lib/api/leads";
+import { ImportLeadsDialog } from "@/components/leads/ImportLeadsDialog";
 import {
   avatarColor,
   initials,
@@ -19,6 +20,7 @@ export default function LeadsPage() {
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [importOpen, setImportOpen] = useState(false);
   const limit = 50;
 
   async function load(nextPage = page, nextQ = search) {
@@ -53,10 +55,11 @@ export default function LeadsPage() {
       </p>
       <h1 className="font-heading mt-2 text-4xl">Leads</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Everyone you imported. Open a campaign to add more from CSV.
+        One record per email. Import here or from a campaign — the same person
+        is stored once and linked with campaign IDs.
       </p>
 
-      <div className="mt-6 flex gap-2">
+      <div className="mt-6 flex flex-wrap gap-2">
         <Input
           className="max-w-sm"
           placeholder="Search email, name, company, city"
@@ -70,6 +73,9 @@ export default function LeadsPage() {
         />
         <Button variant="outline" onClick={() => setSearch(q.trim())}>
           Search
+        </Button>
+        <Button className="ml-auto" onClick={() => setImportOpen(true)}>
+          + Import leads
         </Button>
       </div>
 
@@ -156,6 +162,12 @@ export default function LeadsPage() {
           </Button>
         </div>
       </div>
+
+      <ImportLeadsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={() => load(1, search)}
+      />
     </section>
   );
 }

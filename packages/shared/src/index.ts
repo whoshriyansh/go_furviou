@@ -8,5 +8,7 @@ export {
 export {
   personalizeTemplate,
   leadToPersonalizeValues,
+  enrichLeadValues,
+  splitFullName,
 } from "./personalize";
 export { COMMON_TIMEZONES, listTimeZones, safeTimeZone } from "./timezones";

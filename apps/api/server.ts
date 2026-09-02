@@ -1,15 +1,17 @@
 import app from "./src/app";
 import http from "http";
 import ConnectDB from "./src/db/ConnectDB";
-import { startSendWorker } from "./src/modules/campaigns/sendWorker";
+import { startSendQueue } from "./src/queue/startSendQueue";
 
 const server = http.createServer(app);
+const port = Number(process.env.PORT || 4000);
+const host = process.env.HOST || "0.0.0.0";
 
 ConnectDB()
-  .then(() => {
-    server.listen(process.env.PORT || 4000, () => {
-      console.log(`API running on port ${process.env.PORT || 4000}`);
-      startSendWorker();
+  .then(async () => {
+    await startSendQueue();
+    server.listen(port, host, () => {
+      console.log(`API running on ${host}:${port}`);
     });
   })
   .catch((error) => {

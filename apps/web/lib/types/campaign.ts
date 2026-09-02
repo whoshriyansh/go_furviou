@@ -97,6 +97,14 @@ export type CampaignSending = {
     lastTickHeld: number;
     lastTickError: string | null;
     intervalMs: number;
+    queue?: {
+      wait: number;
+      delayed: number;
+      active: number;
+      completed: number;
+      failed: number;
+      paused: number;
+    };
   };
 };
 
