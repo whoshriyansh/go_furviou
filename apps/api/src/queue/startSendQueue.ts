@@ -60,7 +60,7 @@ export async function startSendQueue() {
     },
     {
       connection: createRedisConnection(),
-      concurrency: Number(process.env.SEND_CONCURRENCY || 3),
+      concurrency: Number(process.env.SEND_CONCURRENCY || 1),
     },
   );
 

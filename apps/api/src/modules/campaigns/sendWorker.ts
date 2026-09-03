@@ -16,6 +16,7 @@ import {
   startOfZonedDay,
   zonedDateKey,
 } from "./schedule";
+import { leadGapMs, nextStaggeredSlot } from "./sendSlot";
 import {
   buildRfcMessage,
   getValidAccessToken,
@@ -138,7 +139,7 @@ export async function processOne(
   }
 
   if (!options?.ignoreWindow && !isWithinSendWindow(new Date(), campaign)) {
-    const next = nextSendSlot(new Date(), campaign);
+    const next = await nextStaggeredSlot(campaign);
     locked.nextSendAt = next;
     locked.lastError = undefined;
     await locked.save();
@@ -187,6 +188,29 @@ export async function processOne(
   }
 
   await resetDailyCount(account, campaign.timezone);
+  const gap = leadGapMs(campaign);
+  const lastMailboxSend = await EmailMessage.findOne({
+    sendingAccountId: account._id,
+    status: "sent",
+  })
+    .sort({ sentAt: -1 })
+    .select("sentAt");
+  if (
+    lastMailboxSend?.sentAt &&
+    Date.now() - lastMailboxSend.sentAt.getTime() < gap
+  ) {
+    const next = nextSendSlot(
+      new Date(lastMailboxSend.sentAt.getTime() + gap),
+      campaign,
+    );
+    locked.nextSendAt = next;
+    locked.lastError = undefined;
+    await locked.save();
+    return {
+      status: "held" as const,
+      message: `Spacing mailbox sends by ${Math.round(gap / 1000)}s`,
+    };
+  }
   if (account.sentToday >= account.dailyLimit) {
     locked.nextSendAt = nextSendSlot(new Date(Date.now() + 60 * 60 * 1000), campaign);
     locked.lastError = "Mailbox daily limit reached";

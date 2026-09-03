@@ -11,7 +11,7 @@ const WEEKDAYS: DayOfWeek[] = [
   "saturday",
 ];
 
-type Schedule = {
+export type Schedule = {
   timezone: string;
   sendDays: DayOfWeek[];
   sendWindowStart: string;

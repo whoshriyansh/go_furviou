@@ -6,11 +6,11 @@ Wants=docker.service
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/opt/furviou
+WorkingDirectory=/opt/furviou/apps/api
 Environment=NODE_ENV=production
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=/opt/furviou/apps/api/.env
-ExecStart=/usr/bin/corepack pnpm --filter api start
+ExecStart=/usr/bin/node /opt/furviou/apps/api/node_modules/tsx/dist/cli.mjs /opt/furviou/apps/api/server.ts
 Restart=always
 RestartSec=5
 TimeoutStopSec=30
