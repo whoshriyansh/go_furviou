@@ -4,8 +4,9 @@ import { SITE } from "@/lib/site";
 
 const nav = [
   { href: "/", label: "Product" },
-  { href: "/privacy", label: "Privacy" },
-  { href: "/terms", label: "Terms" },
+  { href: SITE.sibling.href, label: SITE.sibling.name, external: true },
+  { href: `${SITE.studioUrl}/work`, label: "Work", external: true },
+  { href: SITE.studioUrl, label: "Studio", external: true },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -20,21 +21,25 @@ export function SiteHeader() {
           </span>
         </Link>
         <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="transition-colors hover:text-foreground"
-            >
-              {item.label}
-            </Link>
-          ))}
-          <a
-            href={`${SITE.studioUrl}/services`}
-            className="transition-colors hover:text-foreground"
-          >
-            Studio
-          </a>
+          {nav.map((item) =>
+            item.external ? (
+              <a
+                key={item.label}
+                href={item.href}
+                className="transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </a>
+            ) : (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </Link>
+            ),
+          )}
         </nav>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
