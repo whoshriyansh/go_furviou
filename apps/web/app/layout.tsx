@@ -27,11 +27,33 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
-    default: "Go by Furviou",
+    default: "Go by Furviou — Gmail outreach sequences",
     template: "%s · Go by Furviou",
   },
-  description:
-    "Import leads, connect Gmail, and send email sequences from your own inbox.",
+  description: SITE.description,
+  keywords: [
+    "Gmail outreach",
+    "email sequences",
+    "Go by Furviou",
+    "Furviou",
+    "lead follow up",
+    "IT product studio Delhi",
+  ],
+  authors: [{ name: SITE.founder.name, url: SITE.studioUrl }],
+  alternates: { canonical: SITE.url },
+  openGraph: {
+    title: "Go by Furviou — Gmail outreach sequences",
+    description: SITE.description,
+    url: SITE.url,
+    siteName: "Go by Furviou",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    creator: "@whoshriyansh",
+    title: "Go by Furviou",
+    description: SITE.tagline,
+  },
 };
 
 export default function RootLayout({
@@ -39,6 +61,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Go by Furviou",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    url: SITE.url,
+    description: SITE.description,
+    creator: {
+      "@type": "Organization",
+      name: SITE.name,
+      url: SITE.studioUrl,
+      founder: SITE.founder.name,
+    },
+    isPartOf: { "@type": "WebSite", url: SITE.studioUrl, name: "Furviou" },
+  };
+
   return (
     <html
       lang="en"
@@ -50,6 +89,12 @@ export default function RootLayout({
         instrumentSerif.variable,
       )}
     >
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        />
+      </head>
       <body>
         <Providers>
           <TooltipProvider>

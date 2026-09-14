@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { HomeAuth } from "@/components/site/HomeAuth";
 import { SiteShell } from "@/components/site/SiteShell";
+import { StudioEcosystem } from "@/components/site/StudioEcosystem";
 
 const chapters = [
   {
@@ -88,6 +89,7 @@ export default function HomePage() {
             ))}
           </div>
         </section>
+        <StudioEcosystem />
       </main>
     </SiteShell>
   );

@@ -21,7 +21,8 @@ export default function ContactPage() {
           </h1>
           <p className="mt-6 max-w-xl text-lg text-muted-foreground">
             Product support and Google OAuth questions go to a real person — not
-            a ticket black hole.
+            a ticket black hole. Custom websites and products are studio work at{" "}
+            <a href={SITE.studioUrl}>furviou.com</a>.
           </p>
           <div className="mt-10 space-y-6 border-t border-border pt-10">
             <div>

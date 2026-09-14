@@ -8,9 +8,10 @@ export function SiteFooter() {
         <div className="md:col-span-2">
           <p className="font-heading text-2xl">{SITE.name}</p>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-            IT product studio building MVPs, SaaS, AI applications, and internal
-            tools. {SITE.product} is our email outreach product — import leads,
-            connect Gmail, and send sequences from your own inbox.
+            {SITE.product} is Furviou&apos;s outreach product. The studio
+            builds websites and products for startups and local businesses in
+            the US and India. Founded by {SITE.founder.name} (@
+            {SITE.founder.handle}).
           </p>
           <a
             href={`mailto:${SITE.supportEmail}`}
@@ -18,31 +19,43 @@ export function SiteFooter() {
           >
             {SITE.supportEmail}
           </a>
+          <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
+            {SITE.socials.map((social) => (
+              <a key={social.name} href={social.href}>
+                {social.name}
+              </a>
+            ))}
+          </div>
         </div>
         <div>
           <p className="text-xs tracking-widest text-muted-foreground uppercase">
-            Product
+            Furviou
           </p>
           <ul className="mt-4 space-y-2 text-sm">
             <li>
-              <Link href="/">Home</Link>
+              <Link href="/">Go</Link>
             </li>
             <li>
-              <Link href="/login">Login</Link>
+              <a href={SITE.sibling.href}>{SITE.sibling.name}</a>
             </li>
             <li>
-              <Link href="/register">Get started</Link>
+              <a href={SITE.studioUrl}>Studio</a>
+            </li>
+            <li>
+              <a href={`${SITE.studioUrl}/work`}>Work</a>
+            </li>
+            <li>
+              <a href={`${SITE.studioUrl}/it-solutions-delhi`}>
+                IT solutions in Delhi
+              </a>
             </li>
           </ul>
         </div>
         <div>
           <p className="text-xs tracking-widest text-muted-foreground uppercase">
-            Company
+            Legal
           </p>
           <ul className="mt-4 space-y-2 text-sm">
-            <li>
-              <a href={`${SITE.studioUrl}/services`}>Services</a>
-            </li>
             <li>
               <Link href="/privacy">Privacy</Link>
             </li>
@@ -52,11 +65,15 @@ export function SiteFooter() {
             <li>
               <Link href="/contact">Contact</Link>
             </li>
+            <li>
+              <Link href="/login">Login</Link>
+            </li>
           </ul>
         </div>
       </div>
       <div className="border-t border-border px-6 py-5 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} {SITE.name}. All rights reserved.
+        © {new Date().getFullYear()} {SITE.name}. {SITE.product} is a Furviou
+        product.
       </div>
     </footer>
   );
