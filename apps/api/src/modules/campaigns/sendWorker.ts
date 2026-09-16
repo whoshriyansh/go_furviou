@@ -131,9 +131,12 @@ export async function processOne(
     return { status: "skipped" as const, message: "No more steps" };
   }
 
-  if (!step.subject.trim() || !step.body.trim()) {
+  const replyStep = Boolean(step.sendAsReply) && locked.currentStep > 0;
+  if (!(step.body || "").trim() || (!replyStep && !(step.subject || "").trim())) {
     locked.nextSendAt = nextSendSlot(new Date(Date.now() + 15 * 60 * 1000), campaign);
-    locked.lastError = "Sequence step is missing a subject or message";
+    locked.lastError = replyStep
+      ? "Sequence step is missing a message"
+      : "Sequence step is missing a subject or message";
     await locked.save();
     return { status: "failed" as const, message: locked.lastError };
   }
@@ -278,24 +281,40 @@ export async function processOne(
   if (lead.isModified()) {
     await lead.save();
   }
-  const subject = personalizeTemplate(step.subject, values);
-  const bodyText = personalizeTemplate(step.body, values);
+  const subject = personalizeTemplate(step.subject || "", values).trim();
+  const bodyText = personalizeTemplate(step.body, values).trim();
   console.info("[send] personalize", {
     to: lead.email,
     lastName: values.lastName || null,
     fullName: values.fullName || null,
     iceBreaker: values.iceBreaker || null,
+    followUp1: values.followUp1 ? "yes" : null,
   });
+  if (!bodyText) {
+    locked.nextSendAt = nextSendSlot(new Date(Date.now() + 15 * 60 * 1000), campaign);
+    locked.lastError = "Personalized message is empty for this lead";
+    await locked.save();
+    return { status: "failed" as const, message: locked.lastError };
+  }
   const signature = account.signature?.trim();
   const body = signature ? `${bodyText}\n\n${signature}` : bodyText;
   const sendAsReply = step.sendAsReply && previous.length > 0;
   const last = sendAsReply ? previous[previous.length - 1] : undefined;
+  const outgoingSubject = sendAsReply
+    ? (last?.subject || subject)
+    : subject;
+  if (!outgoingSubject) {
+    locked.nextSendAt = nextSendSlot(new Date(Date.now() + 15 * 60 * 1000), campaign);
+    locked.lastError = "Sequence step is missing a subject";
+    await locked.save();
+    return { status: "failed" as const, message: locked.lastError };
+  }
   const rfcId = `step.${locked._id}.${locked.currentStep}.${Date.now()}@go.furviou.com`;
   const { raw, rfcMessageId } = buildRfcMessage({
     fromName: account.fromName,
     fromEmail: account.email,
     toEmail: lead.email,
-    subject: sendAsReply && last?.subject ? last.subject : subject,
+    subject: outgoingSubject,
     body,
     messageId: rfcId,
     inReplyTo: sendAsReply ? last?.rfcMessageId : undefined,
@@ -307,7 +326,7 @@ export async function processOne(
     leadId: lead._id,
     sendingAccountId: account._id,
     stepOrder: locked.currentStep,
-    subject,
+    subject: outgoingSubject,
     rfcMessageId,
     status: "queued",
   });

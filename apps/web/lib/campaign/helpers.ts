@@ -34,8 +34,18 @@ export function withStepKeys(steps: CampaignStep[]) {
   }));
 }
 
+export function stepNeedsOwnSubject(step: Pick<CampaignStep, "order" | "sendAsReply">) {
+  return step.order === 0 || !step.sendAsReply;
+}
+
 export function stepIsValid(step: CampaignStep) {
-  return Boolean(step.subject.trim() && step.body.trim());
+  if (!(step.body || "").trim()) {
+    return false;
+  }
+  if (stepNeedsOwnSubject(step) && !(step.subject || "").trim()) {
+    return false;
+  }
+  return true;
 }
 
 export function sequenceIsReady(steps: CampaignStep[]) {

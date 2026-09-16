@@ -29,7 +29,7 @@ export function LaunchTab({
   const checks = [
     {
       ok: readySequence,
-      label: "Every email has a subject and a message",
+      label: "First email has a subject; follow-ups have a message",
     },
     {
       ok: senders.length > 0,

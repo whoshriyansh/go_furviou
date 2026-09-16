@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "test": "tsx --test src/personalize.test.ts"
+    "test": "tsx --test src/*.test.ts"
   },
   "keywords": [],
   "author": "",

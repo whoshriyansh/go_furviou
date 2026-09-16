@@ -1,8 +1,10 @@
 export { APP_NAME } from "./constants";
 export {
   LEAD_FIELDS,
+  FOLLOW_UP_FIELDS,
   suggestLeadField,
   normalizeHeader,
+  stripLeadingSubjectLine,
   type LeadFieldKey,
 } from "./leadFields";
 export {

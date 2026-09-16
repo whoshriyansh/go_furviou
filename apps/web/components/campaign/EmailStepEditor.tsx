@@ -25,7 +25,12 @@ import {
   matchingLeadFields,
   openVariableQuery,
 } from "@/lib/campaign/variables";
-import { leadName, senderIds, stepIsValid } from "@/lib/campaign/helpers";
+import {
+  leadName,
+  senderIds,
+  stepIsValid,
+  stepNeedsOwnSubject,
+} from "@/lib/campaign/helpers";
 import type { Campaign, CampaignStep } from "@/lib/types/campaign";
 import type { Lead } from "@/lib/types/lead";
 import type { Mailbox } from "@/lib/types/mailbox";
@@ -42,7 +47,11 @@ const SAMPLE: Lead = {
   city: "New York",
   country: "United States",
   jobTitle: "Founder",
-  iceBreaker: "Loved your note about the Brooklyn shop.",
+  subjectLine: "quick redesign idea for Northwind",
+  iceBreaker: "Hi Alex,\n\nLoved your note about the Brooklyn shop.",
+  followUp1: "Hi Alex,\n\nJust bumping this in case it got buried.",
+  followUp2: "Hi Alex,\n\nHappy to share a couple of examples if useful.",
+  followUp3: "Hi Alex,\n\nLast check-in from me — happy to close the loop.",
 };
 
 type SuggestState = {
@@ -271,57 +280,64 @@ export function EmailStepEditor({
           </div>
         )}
 
-        <div className="relative">
-          <div className="mb-1 flex items-center justify-between">
-            <Label htmlFor="subject">Subject line</Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              onClick={() => {
-                subjectRef.current?.focus();
-                const cursor = subjectRef.current?.selectionStart ?? step.subject.length;
-                const next = `${step.subject.slice(0, cursor)}{{${step.subject.slice(cursor)}`;
-                onChange({ subject: next });
-                requestAnimationFrame(() => {
-                  const el = subjectRef.current;
-                  const pos = cursor + 2;
-                  el?.setSelectionRange(pos, pos);
-                  syncSuggest("subject", next, el);
-                });
+        {stepNeedsOwnSubject(step) ? (
+          <div className="relative">
+            <div className="mb-1 flex items-center justify-between">
+              <Label htmlFor="subject">Subject line</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  subjectRef.current?.focus();
+                  const cursor = subjectRef.current?.selectionStart ?? step.subject.length;
+                  const next = `${step.subject.slice(0, cursor)}{{${step.subject.slice(cursor)}`;
+                  onChange({ subject: next });
+                  requestAnimationFrame(() => {
+                    const el = subjectRef.current;
+                    const pos = cursor + 2;
+                    el?.setSelectionRange(pos, pos);
+                    syncSuggest("subject", next, el);
+                  });
+                }}
+              >
+                <Braces />
+                Variable
+              </Button>
+            </div>
+            <Input
+              id="subject"
+              ref={subjectRef}
+              placeholder="Type {{ to insert a mapped field, e.g. {{subjectLine}}"
+              value={step.subject}
+              aria-invalid={invalid && !step.subject.trim()}
+              onChange={(event) => {
+                onChange({ subject: event.target.value });
+                syncSuggest("subject", event.target.value, event.target);
               }}
-            >
-              <Braces />
-              Variable
-            </Button>
-          </div>
-          <Input
-            id="subject"
-            ref={subjectRef}
-            placeholder="Type {{ to insert a mapped field"
-            value={step.subject}
-            aria-invalid={invalid && !step.subject.trim()}
-            onChange={(event) => {
-              onChange({ subject: event.target.value });
-              syncSuggest("subject", event.target.value, event.target);
-            }}
-            onKeyUp={(event) =>
-              syncSuggest("subject", event.currentTarget.value, event.currentTarget)
-            }
-            onClick={(event) =>
-              syncSuggest("subject", event.currentTarget.value, event.currentTarget)
-            }
-            onKeyDown={onSuggestKey}
-          />
-          {suggest?.target === "subject" ? (
-            <VariableMenu
-              matches={matches}
-              index={suggest.index}
-              values={values}
-              onPick={pickVariable}
+              onKeyUp={(event) =>
+                syncSuggest("subject", event.currentTarget.value, event.currentTarget)
+              }
+              onClick={(event) =>
+                syncSuggest("subject", event.currentTarget.value, event.currentTarget)
+              }
+              onKeyDown={onSuggestKey}
             />
-          ) : null}
-        </div>
+            {suggest?.target === "subject" ? (
+              <VariableMenu
+                matches={matches}
+                index={suggest.index}
+                values={values}
+                onPick={pickVariable}
+              />
+            ) : null}
+          </div>
+        ) : (
+          <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+            Replies keep the original subject. Put the follow-up copy in the
+            message using {"{{followUp1}}"}, {"{{followUp2}}"}, or {"{{followUp3}}"}.
+          </p>
+        )}
 
         <div className="relative">
           <div className="mb-1 flex items-center justify-between">
@@ -351,7 +367,11 @@ export function EmailStepEditor({
             id="body"
             ref={bodyRef}
             className={cn("min-h-52", invalid && !step.body.trim() && "border-destructive")}
-            placeholder="Start writing. Type {{ to pick firstName, iceBreaker, city…"
+            placeholder={
+              step.order === 0
+                ? "Start writing. Type {{ to pick firstName, iceBreaker, subjectLine…"
+                : `Use {{followUp${Math.min(Math.max(step.order, 1), 3)}}} for this lead's follow-up. Type {{ to insert a field.`
+            }
             value={step.body}
             aria-invalid={invalid && !step.body.trim()}
             onChange={(event) => {
@@ -394,7 +414,9 @@ export function EmailStepEditor({
             Using {leadName(lead)} · {lead.email}
           </p>
           <p className="font-medium">
-            {personalizeTemplate(step.subject, values) || "(no subject)"}
+            {step.sendAsReply
+              ? "Re: original thread subject"
+              : personalizeTemplate(step.subject, values) || "(no subject)"}
           </p>
           <pre className="whitespace-pre-wrap rounded-lg bg-muted p-3 font-sans text-sm">
             {personalizeTemplate(step.body, values) || "(empty)"}

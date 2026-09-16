@@ -12,7 +12,11 @@ interface Lead {
   linkedin?: string;
   company?: string;
   jobTitle?: string;
+  subjectLine?: string;
   iceBreaker?: string;
+  followUp1?: string;
+  followUp2?: string;
+  followUp3?: string;
   demoProject?: string;
   googleReviewCount?: string;
   averageRating?: string;
@@ -46,7 +50,11 @@ const leadSchema = new Schema<Lead>(
     linkedin: String,
     company: String,
     jobTitle: String,
+    subjectLine: String,
     iceBreaker: String,
+    followUp1: String,
+    followUp2: String,
+    followUp3: String,
     demoProject: String,
     googleReviewCount: String,
     averageRating: String,

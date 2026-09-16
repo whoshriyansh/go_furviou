@@ -15,7 +15,11 @@ export type Lead = {
   linkedin?: string;
   company?: string;
   jobTitle?: string;
+  subjectLine?: string;
   iceBreaker?: string;
+  followUp1?: string;
+  followUp2?: string;
+  followUp3?: string;
   city?: string;
   country?: string;
   notes?: string;

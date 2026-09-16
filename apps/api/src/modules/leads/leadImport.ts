@@ -42,7 +42,7 @@ function mappedFields(incoming: LeadPayload) {
   const enriched = enrichLeadValues(incoming);
   const set: Record<string, string> = {};
   for (const key of FILL_KEYS) {
-    const next = enriched[key] || incoming[key];
+    const next = enriched[key];
     if (next) {
       set[key] = next;
     }

@@ -39,7 +39,13 @@ function defaultSteps(): CampaignStep[] {
 function isSequenceComplete(steps?: CampaignStep[]) {
   return Boolean(
     steps?.length &&
-      steps.every((step) => step.subject?.trim() && step.body?.trim()),
+      steps.every((step) => {
+        if (!step.body?.trim()) {
+          return false;
+        }
+        const needsSubject = step.order === 0 || !step.sendAsReply;
+        return !needsSubject || Boolean(step.subject?.trim());
+      }),
   );
 }
 
@@ -531,7 +537,7 @@ export async function launchCampaign(req: Request, res: Response) {
   const steps = campaign.steps?.length ? campaign.steps : [];
   if (!isSequenceComplete(steps)) {
     return res.status(400).json({
-      message: "Every email in the sequence needs a subject and a message",
+      message: "Every email needs a message. The first email also needs a subject.",
     });
   }
 
@@ -599,7 +605,7 @@ export async function resumeCampaign(req: Request, res: Response) {
 
   if (!isSequenceComplete(campaign.steps)) {
     return res.status(400).json({
-      message: "Every email in the sequence needs a subject and a message",
+      message: "Every email needs a message. The first email also needs a subject.",
     });
   }
 

@@ -145,9 +145,15 @@ export function SequenceCanvas({
                   className="w-full border-t border-border px-4 py-4 text-left"
                   onClick={() => onSelect(key)}
                 >
-                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-sm font-medium">
+                    {index === 0 ? "Email" : `Follow-up ${index}`}
+                  </p>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {step.subject || "No subject yet"}
+                    {step.sendAsReply
+                      ? step.body.trim()
+                        ? "Reply in last thread"
+                        : "No message yet"
+                      : step.subject || "No subject yet"}
                   </p>
                 </button>
               </article>

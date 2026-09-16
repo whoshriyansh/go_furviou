@@ -23,7 +23,7 @@ const sequenceStepSchema = new Schema<SequenceStep>({
     enum: ["minutes", "hours", "days"],
     default: "days",
   },
-  subject: { type: String, required: true },
+  subject: { type: String, default: "" },
   body: { type: String, required: true },
   sendAsReply: { type: Boolean, default: true },
 });

@@ -1,4 +1,9 @@
-import { LEAD_FIELDS, type LeadFieldKey } from "./leadFields";
+import {
+  FOLLOW_UP_FIELDS,
+  LEAD_FIELDS,
+  stripLeadingSubjectLine,
+  type LeadFieldKey,
+} from "./leadFields";
 
 const KEY_BY_ALIAS: Record<string, LeadFieldKey> = {};
 
@@ -21,6 +26,17 @@ const EXTRA: Record<string, LeadFieldKey> = {
   "job title": "jobTitle",
   icebreaker: "iceBreaker",
   ice: "iceBreaker",
+  subject: "subjectLine",
+  subjectline: "subjectLine",
+  "subject line": "subjectLine",
+  followup: "followUp1",
+  "follow up": "followUp1",
+  followup1: "followUp1",
+  "follow up 1": "followUp1",
+  followup2: "followUp2",
+  "follow up 2": "followUp2",
+  followup3: "followUp3",
+  "follow up 3": "followUp3",
   phonenumber: "mobile",
   phone: "mobile",
 };
@@ -79,8 +95,11 @@ export function enrichLeadValues(
   const values: Partial<Record<LeadFieldKey, string>> = {};
   for (const field of LEAD_FIELDS) {
     const value = readValue(lead, field.key);
-    if (value) {
-      values[field.key] = value;
+    const cleaned = FOLLOW_UP_FIELDS.includes(field.key)
+      ? stripLeadingSubjectLine(value)
+      : value;
+    if (cleaned) {
+      values[field.key] = cleaned;
     }
   }
 
